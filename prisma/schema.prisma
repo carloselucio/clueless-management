@@ -1,0 +1,181 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+  previewFeatures = ["fullTextSearch"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// This is for next-auth prisma adapter
+model Account {
+  id                 String  @id @default(cuid())
+  userId             String
+  type               String
+  provider           String
+  providerAccountId  String
+  refresh_token      String?  @db.Text
+  access_token       String?  @db.Text
+  expires_at         Int?
+  token_type         String?
+  scope              String?
+  id_token           String?  @db.Text
+  session_state      String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+// This is for next-auth prisma adapter
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// This is for next-auth prisma adapter
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// This is for next-auth prisma adapter
+model User {
+  id            String        @id @default(cuid())      // from next-auth prisma adapter
+  name          String?       @db.VarChar(100)          // from next-auth prisma adapter
+  email         String?       @db.VarChar(100) @unique  // from next-auth prisma adapter
+  emailVerified DateTime?                               // from next-auth prisma adapter
+  image         String?                                 // from next-auth prisma adapter
+  role          Role          @default(USER)
+  occupation    String?       @db.VarChar(100)
+
+  experiences   Experience[]
+  applications  Application[]
+  dashboard     Dashboard?
+  accounts      Account[]
+  sessions      Session[]
+}
+
+model Experience {
+  experience_id String          @id @default(cuid())
+  user          User            @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  user_id       String
+  type          ExperienceType
+  description   String?         @db.VarChar(1000)
+  name          String          @db.VarChar(200)
+  start_date    DateTime
+  end_date      DateTime
+}
+
+model Dashboard {
+  dashboard_id  String        @id @default(cuid())
+  user          User          @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  user_id       String
+  time_zone     String?       @db.VarChar(50)
+  location      String?       @db.VarChar(100)
+  latitude      String?       @db.VarChar(20)
+  longitude     String?       @db.VarChar(20)
+  availability  DateTime?
+  bio           String?       @db.VarChar(1500)
+  level         Int?
+
+  socialLinks   SocialLinks[]
+  dashboard_skills Dashboard_Skill[]
+}
+
+model Application {
+  application_id    String      @id @default(cuid())
+  user              User        @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  user_id           String
+  jobOffer          JobOffer    @relation(fields: [job_id], references: [job_id], onDelete: Cascade)
+  job_id            String
+  date              DateTime    @default(now())
+  status            Job_Status  @default(PENDING)
+}
+
+model SocialLinks {
+  social_id     String      @id @default(cuid())
+  dashboard     Dashboard   @relation(fields: [dashboard_id], references: [dashboard_id], onDelete: Cascade)
+  dashboard_id  String
+  url           String      @db.VarChar(300)
+}
+
+model Requirement {
+  requirement_id  String    @id @default(cuid())
+  jobOffer        JobOffer  @relation(fields: [job_id], references: [job_id], onDelete: Cascade)
+  job_id          String
+  description     String    @db.VarChar(500)
+}
+
+model Dashboard_Skill {
+  dashboard_skill_id  String    @id @default(cuid())
+  dashboard           Dashboard @relation(fields: [dashboard_id], references: [dashboard_id], onDelete: Cascade)
+  dashboard_id        String
+  skill               Skill     @relation(fields: [skill_id], references: [skill_id], onDelete: Cascade)
+  skill_id            String
+  level               String
+  updated_at          DateTime  @default(now()) @updatedAt
+}
+
+model JobOffer {
+  job_id      String        @id @default(cuid())
+  position    String        @db.VarChar(50)
+  start_date  DateTime
+  end_date    DateTime
+  description String        @db.VarChar(750)
+  contract    ContractType
+  location    String        @db.VarChar(100)
+
+  applications              Application[]
+  jobOffer_skills           JobOffer_Skill[]
+  requirements              Requirement[]
+}
+
+model Skill {
+  skill_id  String  @id @default(cuid())
+  name      String  @db.VarChar(100)
+
+  jobOffer_skills   JobOffer_Skill[]
+  dashboard_skills  Dashboard_Skill[]
+}
+
+model JobOffer_Skill {
+  job_skill_id  String    @id @default(cuid())
+  jobOffer      JobOffer  @relation(fields: [job_id], references: [job_id], onDelete: Cascade)
+  job_id        String
+  skill         Skill     @relation(fields: [skill_id], references: [skill_id], onDelete: Cascade)
+  skill_id      String
+}
+
+enum Role {
+  USER
+  ADMIN
+  MASTER
+}
+
+enum ExperienceType {
+  JOB
+  PERSONAL_PROJECT
+  EDUCATION
+}
+
+enum Job_Status {
+  PENDING
+  ACCEPTED
+  REJECTED
+}
+
+enum ContractType {
+  PART_TIME
+  FULL_TIME
+}
